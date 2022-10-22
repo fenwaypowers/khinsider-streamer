@@ -33,6 +33,7 @@ Custom arguments:
 
 * create executable files for Windows, MacOs, and Linux.
 * add a search mode, where instead of having to provide a link, the user can simply search for the album.
+* allow download and stream in FLAC.
 
 ## Notice
 
