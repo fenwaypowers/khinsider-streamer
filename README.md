@@ -37,6 +37,6 @@ Custom arguments:
 
 ## Notice
 
-* I am not an affiliated with [downloads.khinsider.com](https://downloads.khinsider.com/).
+* I am not affiliated with [downloads.khinsider.com](https://downloads.khinsider.com/).
 * If you are affiliated with [downloads.khinsider.com](https://downloads.khinsider.com/) and would like me to take down this repository, please contact me and I will do so.
 * I do not endorse piracy.
