@@ -18,12 +18,14 @@ All you need to provide is a link to the album from khinsider.
 ## Example Use: 
 
 To run, you can simply execute `python3 khdl.py [album link]`.
+
 This will create a playlist in mpv and start streaming each song from the album.
 
 Custom arguments:
 * you may specify the mode (either stream or download)
 * Examples: 
 `python3 khdl.py dl [album link]`
+
 `python3 khdl.py stream [album link]`
 
 ## Future Plans
