@@ -20,7 +20,20 @@ def sys_exit():
     sys.exit(0)
 
 def help_message():
-    print("help message")
+    print('''
+    
+To run, you can simply execute `python3 khdl.py [album link]`.
+
+This will create a playlist in mpv and start streaming each song from the album.
+
+Custom arguments:
+* you may specify the mode (either stream or download)
+* Examples: 
+
+`python3 khdl.py dl [album link]`
+
+`python3 khdl.py stream [album link]`
+''')
     sys_exit()
 
 mode = "stream"
