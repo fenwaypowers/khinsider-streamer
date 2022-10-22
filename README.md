@@ -2,7 +2,7 @@
 
 This is a simple python script that allows you to easily stream or download your favorite video game soundtracks straight from the command line!
 
-The program uses yt-dlp and mpv to get the .mp3 files from khinsider.com [khinsider](https://downloads.khinsider.com/)
+The program uses yt-dlp and mpv to get the .mp3 files from [khinsider.com](https://downloads.khinsider.com/).
 
 All you need to provide is a link to the album from khinsider.
 
