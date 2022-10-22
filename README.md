@@ -36,5 +36,5 @@ Custom arguments:
 
 ## Notice
 
-* I am not an affiliate of [downloads.khinsider.com](https://downloads.khinsider.com/).
+* I am not an affiliated with [downloads.khinsider.com](https://downloads.khinsider.com/).
 * I do not endorse piracy.
