@@ -1,5 +1,4 @@
-from genericpath import isdir
-import requests, subprocess, sys, validators, os, audioread, eyed3, shutil
+import requests, subprocess, sys, validators, os, eyed3
 from html.parser import HTMLParser
 from html.entities import name2codepoint
 
@@ -143,8 +142,4 @@ elif mode == 'stream' and format == 'mp3':
     
     subprocess.run(["mpv", "--playlist="+temp_dir + "/playlist.txt"])
 
-        
-
-#print(link_list)
-print("\n\n\nProcess Done!")
 sys_exit()
