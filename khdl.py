@@ -2,7 +2,7 @@ import requests, subprocess, sys, validators, os, eyed3
 from html.parser import HTMLParser
 from html.entities import name2codepoint
 
-ver = "b1.0"
+ver = "b0.1.1"
 
 temp_dir = "khdl-temp"
 
@@ -34,7 +34,7 @@ def toValidFileName(input:str):
 
 def help_message():
     print('''
-Welcome to khinsider-streamer beat 1.0!
+Welcome to khinsider-streamer beta 0.1.1!
     
 To run, you can simply execute `python3 khdl.py`.
 
@@ -182,7 +182,14 @@ while(True):
         for z in range(len(grouping)-(len(link_list)+1), len(grouping)-1):
             title_str = ""
             for v in grouping[z]:
-                title_str += v + " "
+                if v.isdigit():
+                    title_str += "(" + v + ")"
+                elif v == "audiotrack":
+                    pass
+                elif v[-1] != " ":
+                    title_str += v + " "
+                else:
+                    title_str += v
             title_list.append(title_str)
 
         '''for l in link_list:
