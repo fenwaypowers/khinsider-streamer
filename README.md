@@ -4,8 +4,6 @@ This is a simple python script that allows you to easily stream or download your
 
 The program uses yt-dlp and mpv to get the .mp3 files from [downloads.khinsider.com](https://downloads.khinsider.com/).
 
-All you need to provide is a link to the album from khinsider.
-
 ## Prerequisites: 
 
 * [MPV](https://mpv.io)
@@ -17,23 +15,28 @@ All you need to provide is a link to the album from khinsider.
 
 ## Example Use: 
 
-To run, you can simply execute `python3 khdl.py [album link]`.
+To run, you can simply execute `python3 khdl.py`.
 
-This will create a playlist in mpv and start streaming each song from the album.
+The program will then prompt you to search for an album.
+
+Once an album is selected, the program will create a playlist in mpv and start streaming each song from the album.
 
 Custom arguments:
 * you may specify the mode (either stream or download)
 * Examples: 
 
-`python3 khdl.py dl [album link]`
+`python3 khdl.py dl`
 
-`python3 khdl.py stream [album link]`
+`python3 khdl.py stream`
 
 ## Future Plans
 
-* create executable files for Windows, MacOs, and Linux.
-* add a search mode, where instead of having to provide a link, the user can simply search for the album.
+* create executable files for Windows, MacOS, and Linux.
 * allow download and stream in FLAC.
+
+## Known Issues
+
+* Sometimes album names don't display correctly. Try making your search more specific!
 
 ## Notice
 
