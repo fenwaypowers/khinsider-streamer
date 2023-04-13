@@ -4,7 +4,7 @@ This is a simple python script that allows you to easily stream or download your
 
 The program uses yt-dlp and mpv to get the .mp3 files from [downloads.khinsider.com](https://downloads.khinsider.com/).
 
-## Prerequisites: 
+## Prerequisites
 
 * [MPV](https://mpv.io)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp)
@@ -17,7 +17,7 @@ The program uses yt-dlp and mpv to get the .mp3 files from [downloads.khinsider.
 * If you want the albums to be streamed to a GUI instead of CLI, then check [this](https://github.com/mpv-player/mpv/issues/1808) out.
 * run `python3 -m pip install -r requirements.txt`
 
-## Example Use: 
+## Example Use
 
 To run, you can simply execute `python3 khdl.py`.
 
