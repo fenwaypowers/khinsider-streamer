@@ -1,304 +1,274 @@
-import requests, subprocess, sys, validators, os, eyed3
-from html.parser import HTMLParser
-from html.entities import name2codepoint
+import requests
+import subprocess
+import sys
+import os
+import logging
+import argparse
+import tempfile
+import shutil
+import re
+import string
+import yt_dlp
+from urllib.parse import unquote
+from bs4 import BeautifulSoup
 
-ver = "b0.1.1"
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-temp_dir = "khdl-temp"
+class album():
+    title: str
+    platforms: str
+    album_type: str
+    year: str
+    link: str
 
-if (os.path.isdir(temp_dir)):
-    for file in os.listdir(temp_dir):
-        os.remove(temp_dir + "/" + file)
+    songs = []
 
-if (os.path.isdir(temp_dir)) == False:
-    os.mkdir(temp_dir)
+    def __init__(self, title: str, platforms: str, album_type: str, year: str, link: str):
+        self.title = title
+        self.platforms = platforms
+        self.album_type = album_type
+        self.year = year
+        self.link = url_base + link
 
-def sys_exit():
-    for file in os.listdir(temp_dir):
-        os.remove(temp_dir + "/" + file)
+    def __str__(self) -> str:
+        # Check if any of the attributes are empty or None, and replace with placeholders
+        title = self.title if self.title else "Unknown Title"
+        platforms = self.platforms.rstrip() if self.platforms else "Unknown Platforms"
+        album_type = self.album_type if self.album_type else "Unknown Type"
+        year = self.year if self.year else "Unknown Year"
+        return f'{title} ({platforms}) ({album_type}, {year})'
 
-    os.rmdir(temp_dir)
+class song():
+    title: str
+    link: str
 
-    sys.exit(0)
+    def __init__(self, title: str, link: str):
+        self.title = title
+        self.link = url_base + link
 
-def toValidFileName(input:str):
-    input_split = []
-    output_dir = input
-    for char in ["<", ">", ":", "\"", "/", "\\", "|", "?", "*"]:
-        if char in output_dir:
-            dir_split = output_dir.split(char)
-            output_dir = ""
-            for x in dir_split:
-                output_dir += x
-    return output_dir
+    def __str__(self) -> str:
+        return self.title
 
-def help_message():
-    print('''
-Welcome to khinsider-streamer beta 0.1.1!
+def main():
+
+    global format
+    global temp_dir
+    global url_base
+    global download
+    global output_dir
+
+    url_base = "https://downloads.khinsider.com"
+
+    temp_dir = tempfile.mkdtemp()
+
+    parser = argparse.ArgumentParser(
+        description='Stream or download video game music from khinsider (https://downloads.khinsider.com).')
+    parser.add_argument(
+        '-d', '--download', help='download albums instead of streaming them.', action='store_true')
+    parser.add_argument('-o', '--output-path',
+                        help="specify a path where you want your files to go.", default="albums")
     
-To run, you can simply execute `python3 khdl.py`.
+    '''
+    TODO: Implement flac streaming
+    parser.add_argument('-f', '--format', help="specify what format you would like to stream/download in.",
+                        choices=["mp3", "flac"], default="mp3")
+    '''
 
-The program will then prompt you to search for an album.
+    args = parser.parse_args()
+    format = "mp3"
+    output_dir = output_dir = os.path.abspath(args.output_path)
+    download = args.download
 
-Once an album is selected, the program will create a playlist in mpv and start streaming each song from the album.
+    if not os.path.exists(output_dir) and download:
+        os.mkdir(output_dir)
 
-Custom arguments:
-* you may specify the mode (either stream or download)
-* Examples: 
+    while (True):
+        sel_album = search()
 
-`python3 khdl.py dl`
+        try:
+            song_list = parse_alb_page(sel_album)
 
-`python3 khdl.py stream`
-''')
-    sys_exit()
+            sel_album.songs = song_list
 
-mode = "stream"
-format = "mp3"
-link = ""
-search = True
-
-if len(sys.argv) > 1:
-    for j in range(1, len(sys.argv)):
-        if "." in sys.argv[j]:
-            testlink = ""
-
-            if "http://" in sys.argv[j]:
-                testlink += "https://" + sys.argv[j][7:]
-            elif "https://" not in sys.argv[j]:
-                testlink += "https://" + sys.argv[j]
+            if download:
+                try:
+                    download_album(sel_album)
+                except:
+                    logging.info(f"Failed to download album: {sel_album.title}")
             else:
-                testlink += sys.argv[j]
+                try:
+                    play_list(song_list)
+                except:
+                    logging.info(f"Failed to play album: {sel_album.title}")
+        except:
+            logging.info(f"Failed to parse the page of album: {album.title}")
 
-            if validators.url(testlink):
-                link = testlink
-                search = False
-            else:
-                print(testlink)
-                print("Error! Invalid link provided.")
-                sys_exit()
+        
+def download_album(sel_album: album) -> None:
+    output_path = os.path.join(output_dir, sanitize_filename(str(sel_album)))
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
 
-        elif sys.argv[j] == "stream" or sys.argv[j] == "dl":
-            mode = sys.argv[j]
+    num_digits = len(str(len(sel_album.songs)))
+    fmt_string = f"{{:0{num_digits}}}."
 
-        elif sys.argv[j] == "help" or sys.argv[j] == "h":
-            help_message()
-    
-if not validators.url(link) and not search:
-    print("Please provide a valid link.")
-    sys_exit()
+    for index, song in enumerate(sel_album.songs):
+        ydl_opts = {
+            'outtmpl': os.path.join(output_path, fmt_string.format(index+1) + f"{song.title}.%(ext)s")
+        }
 
-prefix = "https://downloads.khinsider.com"
-link_list = []
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download(song.link)
 
-class MyHTMLParser(HTMLParser):
-    def handle_starttag(self, tag, attrs):
-        for attr in attrs:
-            if len(attr) > 1:
-                if str(attr[1]).endswith(".mp3"):
-                    if (prefix + attr[1]) not in link_list:
-                        link_list.append(prefix + attr[1])
+def play_list(song_list: list):
+    make_playlist(song_list)
+    mpv_args = ["mpv", "--playlist=" + str(os.path.join(temp_dir, "playlist.txt"))]
+    subprocess.run(mpv_args)
 
-search_list = []
+def make_playlist(song_list: list):
+    with open(os.path.join(temp_dir, "playlist.txt"), "w") as playlist_file:
+        for song in song_list:
+            playlist_file.write(song.link + "\n")
 
-class MySearchParser(HTMLParser):
-    def handle_starttag(self, tag, attrs):
-        #print("Start tag:", tag)
-        for attr in attrs:
-            #print("     attr:", attr)
-            if len(attr) > 1:
-                if str(attr[1]).startswith("/game-soundtracks/album/"):
-                    if (prefix + attr[1]) not in link_list:
-                        link_list.append(prefix + attr[1])
+def parse_alb_page(sel_album : album):
+    url = sel_album.link
 
-    def handle_data(self, data):
-        if not data.isspace():
-            search_list.append(data)
+    # Send an HTTP GET request to the URL
+    response = requests.get(url)
 
-data_list = []
+    # Check if the request was successful (status code 200)
+    if response.status_code == 200:
+        # Parse the HTML content using BeautifulSoup
+        soup = BeautifulSoup(response.text, "html.parser")
 
-grouping = []
+        all_tr = soup.find_all("tr")
 
-class MyTRParser(HTMLParser):
-    def handle_endtag(self, tag):
-        if tag == 'tr':
-            data_list.append(tag)
+        song_list = []
 
-    def handle_data(self, data):
-        if not data.isspace():
-            grouping[len(data_list)-1].append(data)
+        for tr in all_tr:
+            if "play track" in str(tr.get_text):
+                song_list.append(parse_song(tr))
 
-search2 = True
+        return song_list
 
-while(True):
+    else:
+        logging.info(
+            f"Failed to fetch the content. HTTP status code: {response.status_code}")
 
-    query = ""
-    if (search2):
-        query = input("Search: ")
-        if query == "q" or query == "quit":
-            sys_exit()
-        if len(query) < 3:
-            print("Your search query must be 3 characters or longer!")
-            query = "a"
+def parse_song(tr: BeautifulSoup) -> song:
+    cells = tr.find_all("td")
 
-    while(search2):
-        link_list = []
-        query_split = query.split(" ")
+    # Extract the relevant data from the cells
+    title_cell = cells[3].find("a")
+    title = title_cell.text
+    link = decode_percent_encoding(title_cell["href"])
+
+    # Check if the title is a timestamp
+    if re.match(r"\d{1,2}:\d{1,2}", title):
+        # If it is, use the title from the previous cell instead
+        title = cells[2].text.strip()
+
+    return song(title, link)
+
+def decode_percent_encoding(s: str):
+    if "%2523" in s:
+        return s
+    else:
+        s = s.replace('%25', '%')
+        s = unquote(s)
+        return s
+
+def search():
+    while (True):
         query = ""
-        for q in query_split:
-            query += q + "+"
-
-        link = "https://downloads.khinsider.com/search?search="+query
-
-        r = requests.get(link)
-
-        with open(temp_dir + "/temp.html", "wb") as w_file:
-            w_file.write(r.content)
-
-        w_file.close()
-
-        parser = MySearchParser()
-
-        with open(temp_dir + '/temp.html', 'r', encoding='utf-8') as myFile:
-            data = myFile.read()
-
-        parser.feed(data)
-
-        myFile.close()
-
-        title_list = []
-        
-        data_list = []
-        grouping = []
-        for m in range(0, len(link_list)+1):
-            grouping.append([])
-
-        parser = MyTRParser()
-
-        parser.feed(data)
-
-        title_str = "N/A  "
-
-        counter = 0
-        for z in range(len(grouping)-(len(link_list)+1), len(grouping)-1):
-            title_str = ""
-            for v in grouping[z]:
-                if v.isdigit():
-                    title_str += "(" + v + ")"
-                elif v == "audiotrack":
-                    pass
-                elif v[-1] != " ":
-                    title_str += v + " "
-                else:
-                    title_str += v
-            title_list.append(title_str)
-
-        '''for l in link_list:
-            l_split = l.split("/")
-            title_list.append(l_split[-1])'''
-
-        for t in range(0, len(title_list)):
-            print("[" + str(t+1) + "] " + title_list[t])
-        
-        while(True):
-            selection = input("Select a album number, or search again. \"q\" to quit: ")
-            if selection == "q" or selection == "quit":
-                sys_exit()
-            elif selection.isdigit():
-                if int(selection)-1 in range(0, len(title_list)):
-                    print("Selection made: " + title_list[int(selection)-1])
-                    link = link_list[int(selection)-1]
-                    search2 = False
-                    break
+        while (True):
+            query = input("Search for an album (q to exit): ")
+            if query == "q" or query == "quit":
+                sys_exit(0)
+            
+            if len(query) < 3:
+                logging.info("Your search query must be 3 characters or longer.")
             else:
-                query = selection
-                if len(query) < 3:
-                    print("Your search query must be 3 characters or longer!")
-                    query = "a"
                 break
 
+        url = url_base + f"/search?search={query}"
 
-        link_list = []
+        # Send an HTTP GET request to the URL
+        response = requests.get(url)
 
-    r = requests.get(link)
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            # Parse the HTML content using BeautifulSoup
+            soup = BeautifulSoup(response.text, "html.parser")
 
-    with open(temp_dir + "/temp.html", "wb") as w_file:
-        w_file.write(r.content)
+            all_tr = soup.find_all("tr")
 
-    w_file.close()
+            album_list = []
 
-    parser = MyHTMLParser()
+            for tr in all_tr:
+                if "albumIcon" in str(tr.get_text):
+                    try:
+                        album_list.append(parse_search(tr))
+                    except:
+                        logging.info(f"ERROR: Failed to parse album \n{tr.text}")
 
-    with open(temp_dir + '/temp.html', 'r', encoding='utf-8') as myFile:
-        data = myFile.read()
+            selection = select(album_list, "Albums")
+            if selection != "q":
+                return album_list[selection]
 
-    parser.feed(data)
+        else:
+            logging.info(
+                f"Failed to fetch the content. HTTP status code: {response.status_code}")
 
-    myFile.close()
+def parse_search(tr: BeautifulSoup) -> album:
+    # Find all <td> tags in the table row
+    cells = tr.find_all("td")
 
-    output_dir = "output"
+    # Extract the relevant data from the cells
+    title = cells[1].find("a").text.strip()
+    platforms = cells[2].text.strip()
+    album_type = cells[3].text.strip()
+    year = cells[4].text.strip()
+    link = cells[0].find("a")["href"]
 
-    if mode == "dl" and format == "mp3":
-        
-        num_0 = len(str(len(link_list)))
+    return album(title, platforms, album_type, year, link)
 
-        temp_file = temp_dir + "/" + str(1).zfill(num_0) + "." + format
+def select(inputlist: list, selectiontype: str):
+    for j, name in enumerate(inputlist):
+        print(f"[{j + 1}] {name}")
 
-        subprocess.run(["yt-dlp", link_list[0], "-o", temp_file])
+    while (True):
+        selection = input(
+            f"Make a selection of {selectiontype} [1-{len(inputlist)}] (q to exit): ")
 
-        eyed3tempfile = eyed3.load(temp_file)
-        if eyed3tempfile.tag.album:
-            output_dir = toValidFileName(eyed3tempfile.tag.album)
+        if selection.isdigit():
+            if int(selection) in range(1, len(inputlist) + 1):
+                break
 
-        if not os.path.isdir(output_dir):
-            os.mkdir(output_dir)
+        if selection == "q":
+            break
 
-        os.remove(temp_file)
+    if selection == "q":
+        return selection
 
-        for i in range(0, len(link_list)):
+    selection = int(selection) - 1
 
-            split = link_list[i].split("/")
-            split = split[-1].split("%2520")
+    logging.info(f"Selection made: {inputlist[selection]}")
+    return selection
 
-            title = ""
-            for k in range(0, len(split)):
-                if split[-1] == split[k]:
-                    title += split[k]
-                else:
-                    title += split[k] + " "
+def sanitize_filename(filename):
+    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    cleaned_filename = ''.join(c for c in filename if c in valid_chars)
+    return cleaned_filename
 
-            temp_file = output_dir + "/" + str(i+1).zfill(num_0) + "." + format
+def sys_exit(code: int):
+    on_exit()
+    sys.exit(code)
 
-            subprocess.run(["yt-dlp", link_list[i], "-o", temp_file])
+def on_exit():
+    for file in os.listdir(temp_dir):
+        os.remove(os.path.join(temp_dir, file))
+    os.rmdir(temp_dir)
 
-            eyed3tempfile = eyed3.load(temp_file)
-            if eyed3tempfile.tag.title:
-                title = toValidFileName(eyed3tempfile.tag.title)
-
-            
-            os.replace(temp_file, output_dir + "/" +
-                    str(i+1).zfill(num_0) + ". " + title + "." + format)
-
-
-    elif mode == 'stream' and format == 'mp3':
-        playlist = ""
-        for e in range(0, len(link_list)):
-            playlist += link_list[e] + "\n"
-
-        if os.path.isfile(temp_dir + "/playlist.txt"):
-            os.remove(temp_dir + "/playlist.txt")
-        
-        open(temp_dir + "/playlist.txt", 'x')
-
-        with open(temp_dir + "/playlist.txt", 'w') as playlist_file:
-            playlist_file.write(playlist)
-        playlist_file.close()
-        
-        subprocess.run(["mpv", "--playlist="+temp_dir + "/playlist.txt"])
-    
-    if not search:
-        break
-    else:
-        search2 = True
-
-
-sys_exit()
+if __name__ == "__main__":
+    main()

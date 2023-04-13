@@ -8,10 +8,14 @@ The program uses yt-dlp and mpv to get the .mp3 files from [downloads.khinsider.
 
 * [MPV](https://mpv.io)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-* [html.parser](https://docs.python.org/3/library/html.parser.html#module-html.parser)
 * [requests](https://pypi.org/project/requests/)
-* [validators](https://pypi.org/project/validators/)
-* [eyed3](https://pypi.org/project/eyed3/)
+* [beatifulsoup4](https://pypi.org/project/beautifulsoup4/)
+
+## Getting Started
+
+* First install [MPV](https://mpv.io).
+* If you want the albums to be streamed to a GUI instead of CLI, then check [this](https://github.com/mpv-player/mpv/issues/1808) out.
+* run `python3 -m pip install -r requirements.txt`
 
 ## Example Use: 
 
@@ -21,22 +25,18 @@ The program will then prompt you to search for an album.
 
 Once an album is selected, the program will create a playlist in mpv and start streaming each song from the album.
 
-Custom arguments:
-* you may specify the mode (either stream or download)
-* Examples: 
+## Future Features
 
-`python3 khdl.py dl`
+Ranked by priority (1 being highest)
 
-`python3 khdl.py stream`
-
-## Future Plans
-
-* create executable files for Windows, MacOS, and Linux.
-* allow download and stream in FLAC.
+1. allow download and stream in FLAC.
+2. allow for the creation, playback, and download of playlists
+3. create executable files for Windows, MacOS, and Linux.
+4. allow for use of VLC when streaming.
 
 ## Known Issues
 
-* Sometimes album names don't display correctly. Try making your search more specific!
+* the character "#" in a song link prevents yt-dlp or mpv from accessing the file. Therefore, these links will not be converted into regular text but will maintain their percent encoding.
 
 ## Notice
 
