@@ -5,7 +5,7 @@ This is a simple python script that allows you to easily stream or download your
 The program uses yt-dlp and mpv to get the .mp3 files from [downloads.khinsider.com](https://downloads.khinsider.com/).
 
 ## Prerequisites
-
+* [Python3](https://python.org/downloads)
 * [MPV](https://mpv.io)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 * [requests](https://pypi.org/project/requests/)
