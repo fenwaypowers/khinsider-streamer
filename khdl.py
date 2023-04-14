@@ -130,7 +130,7 @@ def main():
                         help="specify a path where you want your files to go", default="albums")
     parser.add_argument('-f', '--format', help="specify what format you would like to stream/download in",
                         choices=["mp3", "flac"], default="mp3")
-    parser.add_argument('-ds', '--disable-save', help='disables the default ability of the program to save the download links associated with each album', action='store_true')
+    parser.add_argument('-ds', '--disable-save', help='disables the default ability of the program to save the download links associated with each song', action='store_true')
 
     args = parser.parse_args()
     format = args.format
@@ -195,7 +195,7 @@ def make_playlist(sel_album: album):
     local_format = format
 
     song_list = sel_album.songs
-    if local_format == "flac":
+    if local_format == "flac" and not sel_album.loaded_flac_from_txt:
         logging.info(
             "FLAC is selected. Depending on the number of songs in the album, it may take an extended period of time to extract the FLAC links.")
 
@@ -360,10 +360,7 @@ def select(inputlist: list, selectiontype: str):
                 break
 
         if selection == "q":
-            break
-
-    if selection == "q":
-        return selection
+            return selection
 
     selection = int(selection) - 1
 
