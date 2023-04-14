@@ -46,6 +46,8 @@ class album():
     year: str
     link: str
     link_name: str
+    loaded_mp3_from_txt = False
+    loaded_flac_from_txt = False
 
     songs: List[song] = []
 
@@ -66,20 +68,23 @@ class album():
                 "Cannot save to text files: link_name is missing or blank.")
             return
 
-        with open(os.path.join(data_dir, f"{self.link_name}.txt"), "w") as f:
-            f.write("\n".join(song.link for song in self.songs))
-        with open(os.path.join(data_dir, f"{self.link_name}_flac.txt"), "w") as f:
-            f.write("\n".join(song.flac_link for song in self.songs if song.flac_link))
+        if not self.loaded_mp3_from_txt:
+            with open(os.path.join(data_dir, f"{self.link_name}.txt"), "w") as f:
+                f.write("\n".join(song.link for song in self.songs))
+            with open(os.path.join(data_dir, f"{self.link_name}_flac.txt"), "w") as f:
+                f.write("\n".join(song.flac_link for song in self.songs if song.flac_link))
 
-        flac_path = os.path.join(data_dir, f"{self.link_name}_flac.txt")
-        if os.path.exists(flac_path) and os.path.getsize(flac_path) == 0:
-            os.remove(flac_path)
+        if not self.loaded_flac_from_txt:
+            flac_path = os.path.join(data_dir, f"{self.link_name}_flac.txt")
+            if os.path.exists(flac_path) and os.path.getsize(flac_path) == 0:
+                os.remove(flac_path)
 
     def from_txt(self):
         if os.path.exists(os.path.join(data_dir, f"{self.link_name}.txt")):
             with open(os.path.join(data_dir, f"{self.link_name}.txt"), "r") as f:
                 for line in f.readlines():
                     self.songs.append(song(line.rstrip()))
+            self.loaded_mp3_from_txt = True
         
         if os.path.exists(os.path.join(data_dir, f"{self.link_name}_flac.txt")):
             with open(os.path.join(data_dir, f"{self.link_name}_flac.txt"), "r") as f:
@@ -87,6 +92,9 @@ class album():
                     if index >= len(self.songs):
                         self.songs.append(song(line.rstrip()))
                     self.songs[index].flac_link = line.rstrip()
+            self.loaded_flac_from_txt = True
+
+        
 
     def __str__(self) -> str:
         # Check if any of the attributes are empty or None, and replace with placeholders
@@ -134,29 +142,21 @@ def main():
         os.mkdir(output_dir)
 
     while (True):
-        try:
-            sel_album: album = search()
 
-            if True:
-                sel_album = parse_alb_page(sel_album)
+        sel_album: album = search()
 
-                sel_album.save_to_txt()
+        sel_album = parse_alb_page(sel_album)
 
-                if download:
-                    try:
-                        download_album(sel_album)
-                    except:
-                        logging.info(f"Failed to download album: {sel_album.title}")
-                else:
-                    play_list(sel_album)
-                    try:
-                        pass
-                    except:
-                        logging.info(f"Failed to play album: {sel_album.title}")
-        except:
-            logging.info(f"Failed to parse the page")
-
-        sel_album.save_to_txt()
+        if download:
+            try:
+                download_album(sel_album)
+            except:
+                logging.info(f"Failed to download album: {sel_album.title}")
+        else:
+            try:
+                play_list(sel_album)
+            except:
+                logging.info(f"Failed to play album: {sel_album.title}")
      
 def download_album(sel_album: album) -> None:
     output_path = os.path.join(output_dir, sanitize_filename(str(sel_album)))
@@ -183,6 +183,8 @@ def download_album(sel_album: album) -> None:
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download(dl_link)
+    
+    sel_album.save_to_txt()
 
 def play_list(sel_album: album):
     make_playlist(sel_album)
@@ -209,8 +211,12 @@ def make_playlist(sel_album: album):
                         local_format = "mp3"
                     else:
                         sel_album.songs[i].flac_link = link
+                else:
+                    link = song.flac_link
 
             playlist_file.write(link + "\n")
+    
+    sel_album.save_to_txt()
 
 def parse_alb_page(sel_album: album):
     if os.path.exists(os.path.join(data_dir, f"{sel_album.link_name}.txt")):
@@ -246,16 +252,10 @@ def parse_song(tr: BeautifulSoup) -> song:
 
     # Extract the relevant data from the cells
     title_cell = cells[3].find("a")
-    title = title_cell.text
     link = title_cell["href"]
     link = decode_percent_encoding(link)
 
-    # Check if the title is a timestamp
-    if re.match(r"\d{1,2}:\d{1,2}", title):
-        # If it is, use the title from the previous cell instead
-        title = cells[2].text.strip()
-
-    return song(link, title=title)
+    return song(link)
 
 def get_flac_link(song_link: str):
     if not song_link.startswith(url_base):
