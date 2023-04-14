@@ -94,8 +94,6 @@ class album():
                     self.songs[index].flac_link = line.rstrip()
             self.loaded_flac_from_txt = True
 
-        
-
     def __str__(self) -> str:
         # Check if any of the attributes are empty or None, and replace with placeholders
         title = self.title if self.title else "Unknown Title"
@@ -209,6 +207,7 @@ def make_playlist(sel_album: album):
                     link = get_flac_link(sel_album.songs[i].link)
                     if link.endswith(".mp3"):
                         local_format = "mp3"
+                        logging.info("FLAC not available for this album. Falling back to MP3.")
                     else:
                         sel_album.songs[i].flac_link = link
                 else:
