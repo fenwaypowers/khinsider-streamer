@@ -25,6 +25,23 @@ The program will then prompt you to search for an album.
 
 Once an album is selected, the program will create a playlist in mpv and start streaming each song from the album.
 
+## Help Mesage
+
+```
+usage: khdl.py [-h] [-d] [-o OUTPUT_PATH] [-f {mp3,flac}] [-ds]
+
+Stream or download video game music from khinsider (https://downloads.khinsider.com).
+
+options:
+  -h, --help            show this help message and exit
+  -d, --download        download albums instead of streaming them
+  -o OUTPUT_PATH, --output-path OUTPUT_PATH
+                        specify a path where you want your files to go
+  -f {mp3,flac}, --format {mp3,flac}
+                        specify what format you would like to stream/download in
+  -ds, --disable-save   disables the default ability of the program to save the download links associated with each album
+  ```
+
 ## Future Features
 
 Ranked by priority (1 being highest)
