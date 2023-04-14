@@ -5,7 +5,7 @@ This is a simple python script that allows you to easily stream or download your
 The program uses yt-dlp and mpv to get the .mp3 files from [downloads.khinsider.com](https://downloads.khinsider.com/).
 
 ## Prerequisites
-* [Python3](https://python.org/downloads)
+* [Python 3.7+](https://python.org/downloads)
 * [MPV](https://mpv.io)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 * [requests](https://pypi.org/project/requests/)
@@ -29,14 +29,13 @@ Once an album is selected, the program will create a playlist in mpv and start s
 
 Ranked by priority (1 being highest)
 
-1. allow download and stream in FLAC.
-2. allow for the creation, playback, and download of playlists
-3. create executable files for Windows, MacOS, and Linux.
-4. allow for use of VLC when streaming.
+1. allow for the creation, playback, and download of playlists
+2. create executable files for Windows, MacOS, and Linux.
+3. allow for use of VLC when streaming.
 
 ## Known Issues
 
-* the character "#" in a song link prevents yt-dlp or mpv from accessing the file. Therefore, these links will not be converted into regular text but will maintain their percent encoding.
+* the character "#" in a song link prevents yt-dlp and mpv from accessing the file. Therefore, these links will not be converted into regular text and will maintain their percent encoding.
 
 ## Notice
 

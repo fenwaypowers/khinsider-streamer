@@ -2,6 +2,4 @@
 test.py
 test2.py
 data/*.txt
-data/*.json
 albums/*
-data/*
