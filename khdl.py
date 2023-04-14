@@ -21,7 +21,7 @@ class album():
     year: str
     link: str
 
-    songs = []
+    songs: list = []
 
     def __init__(self, title: str, platforms: str, album_type: str, year: str, link: str):
         self.title = title
@@ -41,10 +41,12 @@ class album():
 class song():
     title: str
     link: str
+    flac_link: str
 
-    def __init__(self, title: str, link: str):
+    def __init__(self, title: str, link: str, flac_link = ""):
         self.title = title
         self.link = url_base + link
+        self.flac_link = flac_link
 
     def __str__(self) -> str:
         return self.title
@@ -67,25 +69,21 @@ def main():
         '-d', '--download', help='download albums instead of streaming them.', action='store_true')
     parser.add_argument('-o', '--output-path',
                         help="specify a path where you want your files to go.", default="albums")
-    
-    '''
-    TODO: Implement flac streaming
     parser.add_argument('-f', '--format', help="specify what format you would like to stream/download in.",
                         choices=["mp3", "flac"], default="mp3")
-    '''
 
     args = parser.parse_args()
-    format = "mp3"
-    output_dir = output_dir = os.path.abspath(args.output_path)
+    format = args.format
+    output_dir = os.path.abspath(args.output_path)
     download = args.download
 
     if not os.path.exists(output_dir) and download:
         os.mkdir(output_dir)
 
     while (True):
-        sel_album = search()
-
         try:
+            sel_album: album = search()
+
             song_list = parse_alb_page(sel_album)
 
             sel_album.songs = song_list
@@ -96,13 +94,13 @@ def main():
                 except:
                     logging.info(f"Failed to download album: {sel_album.title}")
             else:
+                play_list(sel_album)
                 try:
-                    play_list(song_list)
+                    pass
                 except:
                     logging.info(f"Failed to play album: {sel_album.title}")
         except:
-            logging.info(f"Failed to parse the page of album: {album.title}")
-
+            logging.info(f"Failed to parse the page")
         
 def download_album(sel_album: album) -> None:
     output_path = os.path.join(output_dir, sanitize_filename(str(sel_album)))
@@ -114,21 +112,41 @@ def download_album(sel_album: album) -> None:
 
     for index, song in enumerate(sel_album.songs):
         ydl_opts = {
-            'outtmpl': os.path.join(output_path, fmt_string.format(index+1) + f"{song.title}.%(ext)s")
+            'outtmpl': os.path.join(output_path, fmt_string.format(index+1) + f" {song.title}.%(ext)s")
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download(song.link)
+        dl_link = song.link
 
-def play_list(song_list: list):
-    make_playlist(song_list)
+        if format == "flac":
+            if sel_album.songs[index].flac_link != '':
+                dl_link = sel_album.songs[index].flac_link
+
+            if dl_link == song.link:
+                dl_link = get_flac_link(dl_link)
+                sel_album.songs[index].flac_link = dl_link
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download(dl_link)
+
+def play_list(sel_album: album):
+    make_playlist(sel_album)
     mpv_args = ["mpv", "--playlist=" + str(os.path.join(temp_dir, "playlist.txt"))]
     subprocess.run(mpv_args)
 
-def make_playlist(song_list: list):
+def make_playlist(sel_album: album):
+    song_list = sel_album.songs
+    if format == "flac":
+        logging.info("FLAC is selected. Depending on the number of songs in the album, it may take an extended period of time to extract the FLAC links.")
+
     with open(os.path.join(temp_dir, "playlist.txt"), "w") as playlist_file:
-        for song in song_list:
-            playlist_file.write(song.link + "\n")
+        for i, song in enumerate(song_list):
+            link = song.link
+            # Fall back to mp3 if flac not available
+            if song.flac_link == "":
+                sel_album.songs[i].flac_link = get_flac_link(sel_album.songs[i].link)
+                link = sel_album.songs[i].flac_link
+            
+            playlist_file.write(link + "\n")
 
 def parse_alb_page(sel_album : album):
     url = sel_album.link
@@ -161,7 +179,8 @@ def parse_song(tr: BeautifulSoup) -> song:
     # Extract the relevant data from the cells
     title_cell = cells[3].find("a")
     title = title_cell.text
-    link = decode_percent_encoding(title_cell["href"])
+    link = title_cell["href"]
+    link = decode_percent_encoding(link)
 
     # Check if the title is a timestamp
     if re.match(r"\d{1,2}:\d{1,2}", title):
@@ -170,8 +189,36 @@ def parse_song(tr: BeautifulSoup) -> song:
 
     return song(title, link)
 
+def get_flac_link(song_link: str):
+    if not song_link.startswith(url_base):
+        song_link = url_base + song_link
+
+    # Send an HTTP GET request to the URL
+    response = requests.get(song_link)
+
+    link = song_link
+
+    if "%25" in link or "%20" in link:
+        link = decode_percent_encoding(link)
+
+    # Check if the request was successful (status code 200)
+    if response.status_code == 200:
+        # Parse the HTML content using BeautifulSoup
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        for p in soup.find_all("p"):
+            try:
+                if "FLAC" in str(p.find("a").find("span").get_text):
+                    link= decode_percent_encoding(str(p.find("a").get_text).split("href=\"")[1].split("\">")[0])
+            except:
+                pass
+    
+    return link
+
 def decode_percent_encoding(s: str):
     if "%2523" in s:
+        return s
+    elif "%20%23" in s:
         return s
     else:
         s = s.replace('%25', '%')
