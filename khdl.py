@@ -12,19 +12,22 @@ from typing import List
 from urllib.parse import unquote
 from bs4 import BeautifulSoup
 
-logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.INFO)
 
-class song():
+
+class song:
     title: str
     link: str
     flac_link: str
+    disc_number: str
+    track_number: str
 
     def __init__(self, link: str, title="", flac_link=""):
         if title == "":
             title = link.split("/")[-1].split("." + link.split(".")[-1])[0]
-            title = re.sub(r'^\S+\s+', '', title)
+            title = re.sub(r"^\S+\s+", "", title)
             if "%" in title:
-                title = title.replace('%25', '%')
+                title = title.replace("%25", "%")
                 title = unquote(title)
 
         self.title = title
@@ -36,10 +39,30 @@ class song():
 
         self.flac_link = flac_link
 
+        self.disc_number, self.track_number = self.parse_disc_and_track_number()
+
+    def parse_disc_and_track_number(self):
+        match = re.search(r"/(\d+)-(\d+)\s", self.link)
+        if match:
+            disc_number = match.group(1).zfill(2)
+            track_number = match.group(2).zfill(2)
+        else:
+            match = re.search(r"/(\d+)\s", self.link)
+            if match:
+                disc_number = "01"  # Default disc number if not present in link
+                track_number = match.group(1).zfill(2)
+            else:
+                disc_number = "01"
+                track_number = (
+                    self.link.split("/")[-1].split(" ")[0].zfill(2)
+                )  # Extract track number from filename if parsing fails
+        return disc_number, track_number
+
     def __str__(self) -> str:
         return self.title
 
-class album():
+
+class album:
     title: str
     platforms: str
     album_type: str
@@ -51,7 +74,9 @@ class album():
 
     songs: List[song] = []
 
-    def __init__(self, title: str, platforms: str, album_type: str, year: str, link: str):
+    def __init__(
+        self, title: str, platforms: str, album_type: str, year: str, link: str
+    ):
         self.title = title
         self.platforms = platforms
         self.album_type = album_type
@@ -64,15 +89,16 @@ class album():
             return
 
         if not self.link_name:
-            logging.warning(
-                "Cannot save to text files: link_name is missing or blank.")
+            logging.warning("Cannot save to text files: link_name is missing or blank.")
             return
 
         if not self.loaded_mp3_from_txt:
             with open(os.path.join(data_dir, f"{self.link_name}.txt"), "w") as f:
                 f.write("\n".join(song.link for song in self.songs))
             with open(os.path.join(data_dir, f"{self.link_name}_flac.txt"), "w") as f:
-                f.write("\n".join(song.flac_link for song in self.songs if song.flac_link))
+                f.write(
+                    "\n".join(song.flac_link for song in self.songs if song.flac_link)
+                )
 
         if not self.loaded_flac_from_txt:
             flac_path = os.path.join(data_dir, f"{self.link_name}_flac.txt")
@@ -85,7 +111,7 @@ class album():
                 for line in f.readlines():
                     self.songs.append(song(line.rstrip()))
             self.loaded_mp3_from_txt = True
-        
+
         if os.path.exists(os.path.join(data_dir, f"{self.link_name}_flac.txt")):
             with open(os.path.join(data_dir, f"{self.link_name}_flac.txt"), "r") as f:
                 for index, line in enumerate(f.readlines()):
@@ -100,7 +126,8 @@ class album():
         platforms = self.platforms.rstrip() if self.platforms else "Unknown Platforms"
         album_type = self.album_type if self.album_type else "Unknown Type"
         year = self.year if self.year else "Unknown Year"
-        return f'{title} ({platforms}) ({album_type}, {year})'
+        return f"{title} ({platforms}) ({album_type}, {year})"
+
 
 def main():
     global format
@@ -121,14 +148,33 @@ def main():
     temp_dir = tempfile.mkdtemp()
 
     parser = argparse.ArgumentParser(
-        description='Stream or download video game music from khinsider (https://downloads.khinsider.com).')
+        description="Stream or download video game music from khinsider (https://downloads.khinsider.com)."
+    )
     parser.add_argument(
-        '-d', '--download', help='download albums instead of streaming them', action='store_true')
-    parser.add_argument('-o', '--output-path',
-                        help="specify a path where you want your files to go", default="albums")
-    parser.add_argument('-f', '--format', help="specify what format you would like to stream/download in",
-                        choices=["mp3", "flac"], default="mp3")
-    parser.add_argument('-ds', '--disable-save', help='disables the default ability of the program to save the download links associated with each song', action='store_true')
+        "-d",
+        "--download",
+        help="download albums instead of streaming them",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-path",
+        help="specify a path where you want your files to go",
+        default="albums",
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        help="specify what format you would like to stream/download in",
+        choices=["mp3", "flac"],
+        default="mp3",
+    )
+    parser.add_argument(
+        "-ds",
+        "--disable-save",
+        help="disables the default ability of the program to save the download links associated with each song",
+        action="store_true",
+    )
 
     args = parser.parse_args()
     format = args.format
@@ -139,7 +185,7 @@ def main():
     if not os.path.exists(output_dir) and download:
         os.mkdir(output_dir)
 
-    while (True):
+    while True:
 
         sel_album: album = search()
 
@@ -155,39 +201,42 @@ def main():
                 play_list(sel_album)
             except:
                 logging.info(f"Failed to play album: {sel_album.title}")
-     
+
+
 def download_album(sel_album: album) -> None:
     output_path = os.path.join(output_dir, sanitize_filename(str(sel_album)))
     if not os.path.exists(output_path):
         os.mkdir(output_path)
 
-    num_digits = len(str(len(sel_album.songs)))
-    fmt_string = f"{{:0{num_digits}}}."
-
-    for index, song in enumerate(sel_album.songs):
+    for song in sel_album.songs:
         ydl_opts = {
-            'outtmpl': os.path.join(output_path, fmt_string.format(index+1) + f" {song.title}.%(ext)s")
+            "outtmpl": os.path.join(
+                output_path,
+                f"{song.disc_number}-{song.track_number}. {song.title}.%(ext)s",
+            )
         }
 
         dl_link = song.link
 
         if format == "flac":
-            if sel_album.songs[index].flac_link != '':
-                dl_link = sel_album.songs[index].flac_link
+            if song.flac_link != "":
+                dl_link = song.flac_link
 
             if dl_link == song.link:
                 dl_link = get_flac_link(dl_link)
-                sel_album.songs[index].flac_link = dl_link
+                song.flac_link = dl_link
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download(dl_link)
-    
+
     sel_album.save_to_txt()
+
 
 def play_list(sel_album: album):
     make_playlist(sel_album)
     mpv_args = ["mpv", "--playlist=" + str(os.path.join(temp_dir, "playlist.txt"))]
     subprocess.run(mpv_args)
+
 
 def make_playlist(sel_album: album):
     local_format = format
@@ -195,7 +244,8 @@ def make_playlist(sel_album: album):
     song_list = sel_album.songs
     if local_format == "flac" and not sel_album.loaded_flac_from_txt:
         logging.info(
-            "FLAC is selected. Depending on the number of songs in the album, it may take an extended period of time to extract the FLAC links.")
+            "FLAC is selected. Depending on the number of songs in the album, it may take an extended period of time to extract the FLAC links."
+        )
 
     with open(os.path.join(temp_dir, "playlist.txt"), "w") as playlist_file:
         for i, song in enumerate(song_list):
@@ -207,15 +257,18 @@ def make_playlist(sel_album: album):
                     link = get_flac_link(sel_album.songs[i].link)
                     if link.endswith(".mp3"):
                         local_format = "mp3"
-                        logging.info("FLAC not available for this album. Falling back to MP3.")
+                        logging.info(
+                            "FLAC not available for this album. Falling back to MP3."
+                        )
                     else:
                         sel_album.songs[i].flac_link = link
                 else:
                     link = song.flac_link
 
             playlist_file.write(link + "\n")
-    
+
     sel_album.save_to_txt()
+
 
 def parse_alb_page(sel_album: album):
     if os.path.exists(os.path.join(data_dir, f"{sel_album.link_name}.txt")):
@@ -244,7 +297,9 @@ def parse_alb_page(sel_album: album):
         return sel_album
     else:
         logging.info(
-            f"Failed to fetch the content. HTTP status code: {response.status_code}")
+            f"Failed to fetch the content. HTTP status code: {response.status_code}"
+        )
+
 
 def parse_song(tr: BeautifulSoup) -> song:
     cells = tr.find_all("td")
@@ -255,6 +310,7 @@ def parse_song(tr: BeautifulSoup) -> song:
     link = decode_percent_encoding(link)
 
     return song(link)
+
 
 def get_flac_link(song_link: str):
     if not song_link.startswith(url_base):
@@ -276,11 +332,14 @@ def get_flac_link(song_link: str):
         for p in soup.find_all("p"):
             try:
                 if "FLAC" in str(p.find("a").find("span").get_text):
-                    link= decode_percent_encoding(str(p.find("a").get_text).split("href=\"")[1].split("\">")[0])
+                    link = decode_percent_encoding(
+                        str(p.find("a").get_text).split('href="')[1].split('">')[0]
+                    )
             except:
                 pass
 
     return link
+
 
 def decode_percent_encoding(s: str):
     if "%2523" in s:
@@ -288,18 +347,19 @@ def decode_percent_encoding(s: str):
     elif "%20%23" in s:
         return s
     else:
-        s = s.replace('%25', '%')
+        s = s.replace("%25", "%")
         s = unquote(s)
         return s
 
+
 def search():
-    while (True):
+    while True:
         query = ""
-        while (True):
+        while True:
             query = input("Search for an album (q to exit): ")
             if query == "q" or query == "quit":
                 sys_exit(0)
-            
+
             if len(query) < 3:
                 logging.info("Your search query must be 3 characters or longer.")
             else:
@@ -331,7 +391,9 @@ def search():
                 return album_list[selection]
         else:
             logging.info(
-                f"Failed to fetch the content. HTTP status code: {response.status_code}")
+                f"Failed to fetch the content. HTTP status code: {response.status_code}"
+            )
+
 
 def parse_search(tr: BeautifulSoup) -> album:
     # Find all <td> tags in the table row
@@ -346,13 +408,15 @@ def parse_search(tr: BeautifulSoup) -> album:
 
     return album(title, platforms, album_type, year, link)
 
+
 def select(inputlist: list, selectiontype: str):
     for j, name in enumerate(inputlist):
         print(f"[{j + 1}] {name}")
 
-    while (True):
+    while True:
         selection = input(
-            f"Make a selection of {selectiontype} [1-{len(inputlist)}] (q to exit): ")
+            f"Make a selection of {selectiontype} [1-{len(inputlist)}] (q to exit): "
+        )
 
         if selection.isdigit():
             if int(selection) in range(1, len(inputlist) + 1):
@@ -366,19 +430,23 @@ def select(inputlist: list, selectiontype: str):
     logging.info(f"Selection made: {inputlist[selection]}")
     return selection
 
+
 def sanitize_filename(filename):
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    cleaned_filename = ''.join(c for c in filename if c in valid_chars)
+    cleaned_filename = "".join(c for c in filename if c in valid_chars)
     return cleaned_filename
+
 
 def sys_exit(code: int):
     on_exit()
     sys.exit(code)
 
+
 def on_exit():
     for file in os.listdir(temp_dir):
         os.remove(os.path.join(temp_dir, file))
     os.rmdir(temp_dir)
+
 
 if __name__ == "__main__":
     main()
